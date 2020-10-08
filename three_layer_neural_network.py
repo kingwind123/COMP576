@@ -210,7 +210,7 @@ def main():
     plt.scatter(X[:, 0], X[:, 1], s=40, c=y, cmap=plt.cm.Spectral)
     plt.show()
 
-    model = NeuralNetwork(nn_input_dim=2, nn_hidden_dim=3, nn_output_dim=2, actFun_type='Tanh')
+    model = NeuralNetwork(nn_input_dim=2, nn_hidden_dim=8, nn_output_dim=2, actFun_type='Tanh')
     model.fit_model(X, y)
     model.visualize_decision_boundary(X, y)
 
