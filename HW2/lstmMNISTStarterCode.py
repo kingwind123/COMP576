@@ -3,12 +3,9 @@ from tensorflow.python.ops import rnn, rnn_cell
 import numpy as np 
 
 
-if(tf.__version__.split('.')[0]=='2'):
-    import tensorflow.compat.v1 as tf
-    tf.disable_v2_behavior()    
 
 # Load MNIST dataset
-import input_data
+from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 

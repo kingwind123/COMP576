@@ -5,12 +5,13 @@ Created on Tue Oct 13 17:02:35 2020
 @author: lbishal
 """
 
-from scipy import misc
+from matplotlib.pyplot import imread
 import numpy as np
 import tensorflow as tf
 import random
 import matplotlib.pyplot as plt
 import matplotlib as mp
+import os
 
 # compatibility for tf v2.0
 if tf.__version__.split('.')[0] == '2':
@@ -86,38 +87,6 @@ def max_pool_2x2(x):
     return h_max
 
 
-def variable_summary(name, tensor):
-    with tf.name_scope(name + "-summary"):
-        # Summarize the basic scalar stats
-        mean, variance = tf.nn.moments(
-            tensor, axes=list(range(tf.rank(tensor).eval())))
-        tf.summary.scalar('mean', mean)
-        tf.summary.scalar('std', tf.sqrt(variance))
-        tf.summary.scalar('max', tf.reduce_max(tensor))
-        tf.summary.scalar('min', tf.reduce_min(tensor))
-        # Create a histogram of the tensor
-        tf.summary.histogram('histogram', tensor)
-
-
-def plot_filter(filters, name):
-    import math
-    n_filters = filters.shape[3]
-    plt.figure(1, figsize=(20, 20))
-    n_columns = 6
-    n_rows = math.ceil(n_filters / n_columns) + 1
-    plt.title(name)
-    for i in range(n_filters):
-        plt.subplot(n_rows, n_columns, i + 1)
-        plt.title('Filter ' + str(i))
-        plt.imshow(filters[0, :, :, i], interpolation="nearest", cmap="gray")
-
-
-def get_filters(layer, inp_image, name):
-    filters = sess.run(layer, feed_dict={
-        x: inp_image[np.newaxis, ...], keep_prob: 1.0, conv_keep_prob: 1.0})
-    plot_filter(filters, name)
-
-
 ntrain = 1000  # per class
 ntest = 100  # per class
 nclass = 10  # number of classes
@@ -134,19 +103,19 @@ itrain = -1
 itest = -1
 for iclass in range(0, nclass):
     for isample in range(0, ntrain):
-        path = '~/CIFAR10/Train/%d/Image%05d.png' % (iclass, isample)
-        im = misc.imread(path);  # 28 by 28
+        path = os.path.join(os.getcwd(), 'CIFAR10/Train/%d/Image%05d.png' % (iclass, isample))
+        im = imread(path)  # 28 by 28
         im = im.astype(float) / 255
         itrain += 1
         Train[itrain, :, :, 0] = im
-        LTrain[itrain, iclass] = 1  # 1-hot lable
+        LTrain[itrain, iclass] = 1  # 1-hot label
     for isample in range(0, ntest):
-        path = '~/CIFAR10/Test/%d/Image%05d.png' % (iclass, isample)
-        im = misc.imread(path);  # 28 by 28
+        path = os.path.join(os.getcwd(), 'CIFAR10/Test/%d/Image%05d.png' % (iclass, isample))
+        im = imread(path)  # 28 by 28
         im = im.astype(float) / 255
         itest += 1
         Test[itest, :, :, 0] = im
-        LTest[itest, iclass] = 1  # 1-hot lable
+        LTest[itest, iclass] = 1  # 1-hot label
 
 sess = tf.InteractiveSession()
 
@@ -160,21 +129,21 @@ tf_labels = tf.placeholder(tf.float32, shape=[None, nclass])
 # create your model
 
 # first convolutional layer and max pooling layer
-W_conv1 = weight_variable([5, 5, 1, 32], 'W_conv1')
+W_conv1 = weight_variable([5, 5, 1, 32])
 b_conv1 = bias_variable([32])
 h_conv1 = tf.nn.tanh(conv2d(tf_data, W_conv1) + b_conv1)
 h_pool1 = max_pool_2x2(h_conv1)
 
 # second convolutional layer and max pooling layer
-W_conv2 = weight_variable([5, 5, 32, 64], 'W_conv2')
+W_conv2 = weight_variable([5, 5, 32, 64])
 b_conv2 = bias_variable([64])
 h_conv2 = tf.nn.tanh(conv2d(h_pool1, W_conv2) + b_conv2)
 h_pool2 = max_pool_2x2(h_conv2)
 
 # first fully connected layer
-W_fc1 = weight_variable([7 * 7 * 64, 1024], 'W_fc1')
+W_fc1 = weight_variable([7 * 7 * 64, 1024])
 b_fc1 = bias_variable([1024])
-h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
+h_pool2_flat = tf.reshape(h_pool2, [-1, 7 * 7 * 64])
 h_fc1 = tf.nn.tanh(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
 # dropout
@@ -182,7 +151,7 @@ keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
 # second fully connected layer
-W_fc2 = weight_variable([1024, 10], 'W_fc2')
+W_fc2 = weight_variable([1024, 10])
 b_fc2 = bias_variable([10])
 h_fc2 = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
 
@@ -190,37 +159,45 @@ h_fc2 = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
 # loss
 # set up the loss, optimization, evaluation, and accuracy
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf_labels, logits=h_fc2))
-optimizer = tf.train.AdagradOptimizer(learning_rate = 1e-2).minimize(cross_entropy)
+optimizer = tf.train.AdagradOptimizer(learning_rate=1e-2).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(h_fc2, 1), tf.argmax(tf_labels, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # --------------------------------------------------
 # optimization
 
-sess.run(tf.initialize_all_variables())
+sess.run(tf.global_variables_initializer())
 # setup as [batchsize, width, height, numberOfChannels] and use np.zeros()
-batch_xs = np.empty((batchsize, imsize, imsize, nchannels))
+batch_xs = np.zeros((batchsize, imsize, imsize, nchannels))
 # setup as [batchsize, the how many classes]
 batch_ys = np.zeros((batchsize, nclass))
+adagrad_losses = list()
+adagrad_accs = list()
 
-nsamples = ntrain * nclass
-nepochs = 5
-
-for i in range(nepochs):  # try a small iteration size once it works then continue
-    print("Epoch {}/{}".format(i + 1, nepochs))
-    perm = np.arange(nsamples)
+for i in range(5000):  # try a small iteration size once it works then continue
+    perm = np.arange(ntrain * nclass)
     np.random.shuffle(perm)
+    feed = {tf_data: batch_xs, tf_labels: batch_ys, keep_prob: 0.5}
     for j in range(batchsize):
         batch_xs[j, :, :, :] = Train[perm[j], :, :, :]
         batch_ys[j, :] = LTrain[perm[j], :]
-    if i % 10 == 0:
-    # calculate train accuracy and print it
-    optimizer.run(feed_dict={tf_data: batch_xs, tf_labels: batch_ys, keep_prob: 0.5, conv_keep_prob: 0.75})  # dropout only during training
+    loss = cross_entropy.eval(feed_dict=feed)
+
+    adagrad_losses.append(loss)
+    acc = accuracy.eval(feed_dict=feed)
+    first_weight = W_conv1.eval()
+    adagrad_accs.append(acc)
+    if i % 100 == 0:
+        print(
+            '{}th step, loss is {}, train accuracy is {}'.format(i, loss, acc))  # calculate train accuracy and print it
+    optimizer.run(feed_dict={tf_data: batch_xs, tf_labels: batch_ys, keep_prob: 0.5})  # dropout only during training
 
 # --------------------------------------------------
 # test
-
-
+act1 = h_conv1.eval(feed_dict={tf_data: Test, tf_labels: LTest, keep_prob: 1.0})
+act2 = h_conv2.eval(feed_dict={tf_data: Test, tf_labels: LTest, keep_prob: 1.0})
+act3 = h_fc1.eval(feed_dict={tf_data: Test, tf_labels: LTest, keep_prob: 1.0})
+act4 = h_fc2.eval(feed_dict={tf_data: Test, tf_labels: LTest, keep_prob: 1.0})
 print("test accuracy %g" % accuracy.eval(feed_dict={tf_data: Test, tf_labels: LTest, keep_prob: 1.0}))
 
 sess.close()
